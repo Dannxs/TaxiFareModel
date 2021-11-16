@@ -3,15 +3,21 @@ from TaxiFareModel.data import clean_data
 from TaxiFareModel.encoders import DistanceTransformer
 from TaxiFareModel.encoders import TimeFeaturesEncoder
 from TaxiFareModel.utils import compute_rmse
+from TaxiFareModel.utils import haversine_vectorized
+import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LassoCV
+from sklearn.linear_model import ElasticNet
+
 from sklearn.model_selection import train_test_split
 import mlflow
 from mlflow.tracking import MlflowClient
 from memoized_property import memoized_property
+import joblib
 
 
 class Trainer():
@@ -28,21 +34,9 @@ class Trainer():
     def set_pipeline(self):
         """defines the pipeline as a class attribute"""
         '''returns a pipelined model'''
-        dist_pipe = Pipeline([
-            ('dist_trans', DistanceTransformer()),
-            ('stdscaler', StandardScaler())
-        ])
-        time_pipe = Pipeline([
-            ('time_enc', TimeFeaturesEncoder('pickup_datetime')),
-            ('ohe', OneHotEncoder(handle_unknown='ignore'))
-        ])
-        preproc_pipe = ColumnTransformer([
-            ('distance', dist_pipe, ["pickup_latitude", "pickup_longitude", 'dropoff_latitude', 'dropoff_longitude']),
-            ('time', time_pipe, ['pickup_datetime'])
-        ], remainder="drop")
+
         pipe = Pipeline([
-            ('preproc', preproc_pipe),
-            ('linear_model', LinearRegression())
+            ('linear_model',LassoCV(cv = 5 , n_alphas = 5) )
         ])
         self.pipeline = pipe
         return self.pipeline
@@ -79,24 +73,60 @@ class Trainer():
 
     def mlflow_log_metric(self, key, value):
         self.mlflow_client.log_metric(self.mlflow_run.info.run_id, key, value)
+        
+    def save_model(self):
+        """ Save the trained model into a model.joblib file """
+        joblib.dump(tr.set_pipeline(), 'model.joblib')
+        
+    def extract_time_features(self, df):
+        timezone_name = 'America/New_York'
+        time_column = "pickup_datetime"
+        df.index = pd.to_datetime(df[time_column])
+        df.index = df.index.tz_convert(timezone_name)
+        df["dow"] = df.index.weekday
+        df["hour"] = df.index.hour
+        df["month"] = df.index.month
+        df["year"] = df.index.year
+        return df.reset_index(drop=True)
+
+    def extract_distance(self, df):
+        df["distance"] = haversine_vectorized(df, 
+                            start_lat="pickup_latitude", start_lon="pickup_longitude",
+                            end_lat="dropoff_latitude", end_lon="dropoff_longitude")
+        return df.reset_index(drop=True)
+
+
 
 
 if __name__ == "__main__":
+    #get the DataFrame
     df = get_data()
     print('Get data done...')
+    #Clean the Data
     clean_data(df)
     print('Clean data data done...')
+    #Add features from date
+    
     # set X and y
     y = df["fare_amount"]
     X = df.drop("fare_amount", axis=1)
+    
     print('X and y defined...')
     # hold out
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15)
+    
     print('X_train and y_train defined...')
     
     # train and build  pipeline
-    tr = Trainer(X_train, y_train, "[FR][Paris][Danny C batch 722] TaciFareModel")
+    tr = Trainer(X, y, "[FR][Paris][Danny C batch 722] TaciFareModel Savemodel")
+    # Ajout des colonnes pour le time et la distance
+    X = tr.extract_time_features(X)
+    X = tr.extract_distance(X)
+    # Suppression des colonnes non nécéssaire au calcul
+    X = X[["distance", "hour", "dow", "passenger_count"]]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15)
+    tr = Trainer(X_train, y_train, "[FR][Paris][Danny C batch 722] TaciFareModel Savemodel")
     tr.set_pipeline()
+    print('Pipeline set...')
     tr.run()
     print('Train data done...')
     # evaluate
@@ -104,8 +134,14 @@ if __name__ == "__main__":
     print('rmse calculated...')
     print(rmse)
     print('End')
-    
-    tr.mlflow_log_metric("rmse", rmse)
+    #mlflow
+    tr.mlflow_log_metric("LinearRegression", rmse)
+    tr.mlflow_log_param("train split", "0.1")
     tr.mlflow_log_param("model", "linear_model")
+    tr.mlflow_log_param("student_name", "Danny")
     
     print("MLFlow Done")
+
+    tr.save_model()
+    
+    print("Model Saved")
