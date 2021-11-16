@@ -1,0 +1,15 @@
+artifact_uri: file:///home/danxs/code/Dannxs/TaxiFareModel/mlruns/1/21d9156c119943b990dfc83febe1b1be/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: 21d9156c119943b990dfc83febe1b1be
+run_uuid: 21d9156c119943b990dfc83febe1b1be
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1637064415013
+status: 1
+tags: []
+user_id: unknown
