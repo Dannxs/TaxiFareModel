@@ -1,24 +1,21 @@
 from TaxiFareModel.data import get_data
 from TaxiFareModel.data import clean_data
-from TaxiFareModel.encoders import DistanceTransformer
-from TaxiFareModel.encoders import TimeFeaturesEncoder
+from TaxiFareModel.data import df_optimized
 from TaxiFareModel.utils import compute_rmse
 from TaxiFareModel.utils import haversine_vectorized
-import pandas as pd
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import LassoCV
-from sklearn.linear_model import ElasticNet
 from google.cloud import storage
 from sklearn.model_selection import train_test_split
-import mlflow
 from mlflow.tracking import MlflowClient
 from memoized_property import memoized_property
-import joblib
 from TaxiFareModel.params import BUCKET_NAME, STORAGE_LOCATION
+import joblib
+import mlflow
+import pandas as pd
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.svm import SVR
+
 
 class Trainer():
     def __init__(self, X, y, experiment_name):
@@ -34,16 +31,25 @@ class Trainer():
     def set_pipeline(self):
         """defines the pipeline as a class attribute"""
         '''returns a pipelined model'''
+        param_dist = {'rbf_svm__C': [1, 10, 100, 1000], 
+          'rbf_svm__gamma': [0.001, 0.0001], 
+          'rbf_svm__kernel': ['rbf', 'linear']}
+        
+        pipe = Pipeline([('rbf_svm', SVR())],
+                        memory="local_path")
+        search = RandomizedSearchCV(pipe, 
+                                    param_distributions=param_dist,
+                                    pre_dispatch= 3, 
+                                    n_iter=6, 
+                                    n_jobs=-1)
 
-        pipe = Pipeline([
-            ('linear_model',LassoCV(cv = 5 , n_alphas = 5) )
-        ])
-        self.pipeline = pipe
+        self.pipeline = search
         return self.pipeline
 
     def run(self):
         """set and train the pipeline"""
         self.pipeline.fit(self.X, self.y)
+        df_optimized(self.X)
 
 
     def evaluate(self, X_test, y_test):
@@ -110,8 +116,8 @@ if __name__ == "__main__":
     #Clean the Data
     clean_data(df)
     print('Clean data data done...')
-    #Add features from date
-    
+    #optimize data from DataFrame
+    df_optimized(df)
     # set X and y
     y = df["fare_amount"]
     X = df.drop("fare_amount", axis=1)
