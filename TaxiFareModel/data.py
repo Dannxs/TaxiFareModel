@@ -1,6 +1,8 @@
 import pandas as pd
+from TaxiFareModel.params import BUCKET_NAME, BUCKET_TRAIN_DATA_PATH
 
-AWS_BUCKET_PATH = "/home/danxs/code/Dannxs/TaxiFareModel/raw_data/train.csv"
+
+AWS_BUCKET_PATH = f"gs://{BUCKET_NAME}/{BUCKET_TRAIN_DATA_PATH}"
 
 
 def get_data(nrows=10_000):

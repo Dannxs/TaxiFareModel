@@ -12,13 +12,13 @@ from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LassoCV
 from sklearn.linear_model import ElasticNet
-
+from google.cloud import storage
 from sklearn.model_selection import train_test_split
 import mlflow
 from mlflow.tracking import MlflowClient
 from memoized_property import memoized_property
 import joblib
-
+from TaxiFareModel.params import BUCKET_NAME, STORAGE_LOCATION
 
 class Trainer():
     def __init__(self, X, y, experiment_name):
@@ -77,6 +77,11 @@ class Trainer():
     def save_model(self):
         """ Save the trained model into a model.joblib file """
         joblib.dump(tr.set_pipeline(), 'model.joblib')
+        client = storage.Client()
+        bucket = client.bucket(BUCKET_NAME)
+        blob = bucket.blob(STORAGE_LOCATION)
+        blob.upload_from_filename('model.joblib')
+        
         
     def extract_time_features(self, df):
         timezone_name = 'America/New_York'
