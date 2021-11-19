@@ -40,7 +40,7 @@ class Trainer():
         search = RandomizedSearchCV(pipe, 
                                     param_distributions=param_dist,
                                     pre_dispatch= 3, 
-                                    n_iter=6, 
+                                    n_iter=5, 
                                     n_jobs=-1)
 
         self.pipeline = search

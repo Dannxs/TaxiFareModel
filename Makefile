@@ -71,7 +71,7 @@ create_bucket:
 
 # path to the file to upload to GCP (the path to the file should be absolute or should match the directory where the make command is ran)
 # replace with your local path to the `train_1k.csv` and make sure to put the path between quotes
-LOCAL_PATH="/home/danxs/code/Dannxs/TaxiFareModel/raw_data/train_1k.csv"
+LOCAL_PATH="/home/danxs/code/Dannxs/TaxiFareModel/raw_data/train_10k.csv"
 
 # bucket directory in which to store the uploaded file (`data` is an arbitrary name that we choose to use)
 BUCKET_FOLDER=data
@@ -108,4 +108,6 @@ gcp_submit_training:
 		--python-version=${PYTHON_VERSION} \
 		--runtime-version=${RUNTIME_VERSION} \
 		--region ${REGION} \
-		--stream-logs
+		--stream-logs \
+		--scale-tier CUSTOM \
+    --master-machine-type n1-standard-16
